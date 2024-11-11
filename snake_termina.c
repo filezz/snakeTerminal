@@ -2,6 +2,31 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include<sys/ioctl.h> //getting terminal size for screen
+#include<time.h>
+
+
+#define MAX_SNAKESIZE 100 
+#define cursorXY(x,y) printf("\033[%d;%dH",(x),(y)) // moving cursor to a specific position 
+
+typedef struct coordonates
+{
+    int x,y ;
+}coordonates;
+
+typedef struct player
+{
+   coordonates body[MAX_SNAKESIZE]; 
+   int size;
+}player;
+
+typedef struct fruit
+{
+    int value; 
+    coordonates position;
+}fruit;
+
+coordonates lastFruit = {-1,-1}; // for last position of a fruit 
+int isFruit = 0;
 
 void screenSize(int *height , int *width)
 {
@@ -32,11 +57,39 @@ void printGrid(int **grid,int height, int width)
             printf("%c" , grid[i][j]) ;
             
 }
+void clearFruit(int **grid , int x, int y)
+{
+    if( x != -1 && y != -1)
+        grid[y][x]=' '; 
+
+}
+
+void fruitposition(struct fruit *fruit,int height,int width, int **grid)
+{
+    
+        clearFruit(grid,lastFruit.x,lastFruit.y);
+        do{
+            fruit->position.x = 1 + rand() % (width - 2); 
+            fruit->position.y = 1 + rand() % (height - 2) ; 
+        }while(grid[fruit->position.y][fruit->position.x] != ' ') ; 
+    
+
+    grid[fruit->position.y][fruit->position.x] = '@' ;
+    isFruit = 1;
+
+    lastFruit.x = fruit->position.x; 
+    lastFruit.y = fruit->position.y; 
+
+}
+
 int main()
 {
     int height , width ; 
-    screenSize(&height,&width); //grid[height,width]
-    printf("height :%d \n width : %d \n" ,height,width);
+    int isFruit = 0;
+
+    screenSize(&height,&width); //grid[height,width] height = Y axis , width = X axis
+
+
     //allocate memory for height pointers ( each pointers points to an array)
     int **grid = malloc(sizeof(int *) * height); //array of pointers to an array, reason to malloc with (int *) 
    
@@ -48,17 +101,31 @@ int main()
         if(!grid[i])
             perror("allocation in for error"),exit(1);
     }
-    printf("allocation succesful \n"); 
-
+    //printf("allocation succesful \n"); 
 
     for(int i = 0; i<height; i++)
         for(int j = 0; j<width; j++)
             grid[i][j] = ' ';
 
-    drawBorder(grid,height,width);
-    printGrid(grid,height,width); 
+    struct fruit fruit; 
+    
+    while(1)
+    {
+       
+        system("clear"); //system('cls') for windows 
+        drawBorder(grid,height,width);
+        
+        
+        if(isFruit == 0){
+            fruitposition(&fruit,height,width,grid);
+            isFruit = 1 ;
+        }
 
-    //cleanup
+
+        printGrid(grid,height,width);
+        sleep(5);
+    }
+    
     clean(grid,height);   
     return 0;   
 }
