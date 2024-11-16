@@ -2,8 +2,12 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include<sys/ioctl.h> //getting terminal size for screen
-#include<time.h>
+#include<termios.h>
 
+typedef enum direction
+{
+    UP, DOWN , LEFT , RIGHT 
+} direction;
 
 #define MAX_SNAKESIZE 100 
 #define cursorXY(x,y) printf("\033[%d;%dH",(x),(y)) // moving cursor to a specific position 
@@ -15,8 +19,9 @@ typedef struct coordonates
 
 typedef struct player
 {
-   coordonates body[MAX_SNAKESIZE]; 
+   coordonates body; 
    int size;
+   direction direction ;
 }player;
 
 typedef struct fruit
@@ -82,8 +87,52 @@ void fruitposition(struct fruit *fruit,int height,int width, int **grid)
 
 }
 
+struct termios original_settings , new_settings; 
+void setTerminal() // prepre terminal for continous input 
+{
+    tcgetattr(STDIN_FILENO , &original_settings) ; // copying the terminal settings to the original_settings variable
+    new_settings = original_settings; 
+    new_settings.c_lflag &= ~(ICANON | ECHO ); //disable canonical mode and echo & bit operation for AND , attribuing to new_settings the flag of NOT ICANON AND NOT ECHO ( ~ bitwise op for NOT )
+    tcsetattr(STDIN_FILENO , TCSANOW , &new_settings); //TCASNOW is defined as changing the file descriptor ( our case terminal ) in this moment 
+}
+void restoreToDef()
+{
+    tcsetattr(STDIN_FILENO , TCSANOW ,  &original_settings) ; 
+}
+void movement(struct player *snake,int height,int width )
+{
+    switch(snake->direction){
+        case UP : 
+           if(snake->body.x < width && snake->body.x > 0)
+                snake->body.x += 1;
+            else 
+                perror("Array out of boundries"),exit(1);
+            break;
+
+        case DOWN : 
+            if(snake->body.x < width && snake->body.x > 0)
+                snake->body.x -= 1 ;
+            else 
+                perror("Array out of boundries"),exit(1);
+            break; 
+    }
+}
+coordonates lastSnake = {0,0};
+
+void setpos(struct player *snake,int **grid)
+{
+    grid[snake->body.x][snake->body.y] = '*';
+
+    lastSnake.x = snake->body.x; 
+    lastSnake.y = snake->body.y;    
+}
+void cleanTrail(struct coordonates lastSnake, int **grid)
+{
+    grid[lastSnake.x][lastSnake.y] = ' ';
+}
 int main()
 {
+    fruit fruit;
     int height , width ; 
     int isFruit = 0;
 
@@ -107,25 +156,44 @@ int main()
         for(int j = 0; j<width; j++)
             grid[i][j] = ' ';
 
-    struct fruit fruit; 
+   
+    player *snake = malloc(sizeof(player));
+
+    if(!snake)
+        perror("Bad allocation with snake") , exit(1);
     
+    snake->body.x = height/2; 
+    snake->body.y = width/2 ;
+    setTerminal(); 
+    char keyboard; 
+    printf("press any key to play , WASD-control the snake, Q - exit the game\n") ; 
     while(1)
     {
-       
-        system("clear"); //system('cls') for windows 
-        drawBorder(grid,height,width);
         
+        //system("clear"); //system('cls') for windows 
+        drawBorder(grid,height,width);
         
         if(isFruit == 0){
             fruitposition(&fruit,height,width,grid);
             isFruit = 1 ;
         }
 
-
+        keyboard = getchar(); 
+        if(keyboard == 'q' || keyboard == 'Q'){
+            restoreToDef(); //restore default setti ngs;
+            break;
+        }
+       //grid[snake->body.x][snake->body.y] = '*';
+       if(keyboard == 'w')
+            snake->direction = UP;
+       
+        movement(snake,height,width);
+        setpos(snake,grid);
         printGrid(grid,height,width);
-        sleep(5);
+        cleanTrail(lastSnake,grid);
+        sleep(1);
     }
-    
+    restoreToDef() ; // restoring default settings 
     clean(grid,height);   
     return 0;   
 }
