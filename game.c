@@ -118,6 +118,11 @@ void cleanTrail(struct coordonates lastSnake , int **grid)
 {
     grid[lastSnake.y][lastSnake.x] = ' ';
 }
+void checkCol(struct player *snake, struct fruit *fruit , int **grid,int height,int width)
+{
+    if(snake->body.x == fruit->position.x && snake->body.y == fruit->position.y )
+        fruitposition(fruit,height,width,grid);
+}
 
 int main()
 {
@@ -126,11 +131,11 @@ int main()
     fruit.active = 0;
     fruit.lastFruit.x = -1;
     fruit.lastFruit.y = -1;
-
+    
     screenSize(&height,&width); //grid[height,width] height = Y axis , width = X axis
     //allocate memory for height pointers ( each pointers points to an array)
     int **grid = malloc(sizeof(int *) * height); //array of pointers to an array, reason to malloc with (int *) 
-   
+
     if(!grid)
         perror("allocation error") , exit(1);
 
@@ -156,10 +161,11 @@ int main()
     snake->direction = UP;
     snake->lastpos.x = -1; 
     snake->lastpos.y = -1;
-
+ 
     setTerminal(); 
     char keyboard = '\0'; 
     printf("press any key to play , WASD-control the snake, Q - exit the game\n") ; 
+
     while(1)
     {   
         drawBorder(grid,height,width);
@@ -178,6 +184,8 @@ int main()
                                 (keyboard =='s') ? DOWN :
                                 (keyboard =='a') ? LEFT : RIGHT;
             
+        
+        checkCol(snake,&fruit,grid,height,width);
         movement(snake,height,width);
         setpos(snake,grid);
         //cleanscreen();
