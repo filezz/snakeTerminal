@@ -5,10 +5,6 @@
 #include<termios.h>
 #include"snake.h"
 
-
-#define MAX_SNAKESIZE 100 
-#define cursorXY(x,y) printf("\033[%d;%dH",(x),(y)) // moving cursor to a specific position 
-
 int height,width;
 
 void screenSize(int *height , int *width)
@@ -35,7 +31,7 @@ void drawBorder(int **grid , int height,int width)
 }
 void printGrid(int **grid,int height, int width)
 {
-    for(int i = 0; i<height; i++,printf("\n"))
+    for(int i = 0; i<height; i++,printf("\n")) 
         for(int j = 0; j<width; j++)
             printf("%c" , grid[i][j]) ;
             
@@ -44,6 +40,7 @@ void cleanscreen()
 {
     printf("\033[H\033[J");
 }
+
 void clearFruit(int **grid , int x, int y)
 {
     if( x != -1 && y != -1)
@@ -87,41 +84,68 @@ void restoreToDef()
 }
 
 void movement(struct player *snake, int height, int width) {
-    snake->lastpos.x = snake->body.x;
-    snake->lastpos.y = snake->body.y;
 
-    switch (snake->direction) {
-        case UP: 
-            snake->body.y = (snake->body.y > 1) ? snake->body.y - 1 : height - 2;
-            break;
-        case DOWN: 
-            snake->body.y = (snake->body.y < height - 2) ? snake->body.y + 1 : 1;
-            break;
-        case LEFT: 
-            snake->body.x = (snake->body.x > 1) ? snake->body.x - 1 : width - 2;
-            break;
-        case RIGHT: 
-            snake->body.x = (snake->body.x < width - 2) ? snake->body.x + 1 : 1;
-            break;
+    for(int i = snake->size - 1 ; i>0 ; i--)
+        snake->body[i] = snake->body[i-1]; 
+    
+    switch(snake->direction){
+        case UP :snake->body[0].y -= 1;break;
+        case DOWN : snake->body[0].y +=1 ; break;
+        case LEFT: snake->body[0].x -=1 ; break;
+        case RIGHT: snake->body[0].x += 1 ; break;
     }
+    
 }
 
-void setpos(struct player *snake,int **grid)
-{
-    grid[snake->body.y][snake->body.x] = '*';
 
-    snake->lastpos.x = snake->body.x; 
-    snake->lastpos.y = snake->body.y;    
-}
-
-void cleanTrail(struct coordonates lastSnake , int **grid)
+void growsnake(struct player *snake)
 {
-    grid[lastSnake.y][lastSnake.x] = ' ';
+    int size = snake->size ;
+    if(size < MAX_SNAKE) {
+        coordonates new_seg;
+        switch(snake->direction){
+            case UP : 
+                new_seg.x = snake->body[size-1].x; 
+                new_seg.y = snake->body[size-1].y + 1 ;  
+            break;
+
+            case DOWN: 
+                new_seg.x = snake->body[size-1].x ;
+                new_seg.y = snake->body[size-1].y - 1; 
+            break ;
+
+            case LEFT : 
+                new_seg.x = snake->body[size-1].x + 1 ;
+                new_seg.y = snake->body[size-1].y;
+            break;
+            
+            case RIGHT : 
+                new_seg.x = snake->body[size-1].x - 1;
+                new_seg.y = snake->body[size-1].y;
+            break;
+                
+        }
+    snake->body[size] = new_seg ; 
+    snake->size ++;
+
+    }
 }
 void checkCol(struct player *snake, struct fruit *fruit , int **grid,int height,int width)
 {
-    if(snake->body.x == fruit->position.x && snake->body.y == fruit->position.y )
-        fruitposition(fruit,height,width,grid);
+    if(snake->body[0].x == fruit->position.x && snake->body[0].y == fruit->position.y )
+        growsnake(snake), fruitposition(fruit,height,width,grid);
+    
+    for(int i=1;i<snake->size;i++)
+        if(snake->body[0].x == snake->body[i].x && snake->body[0].y == snake->body[i].y)
+            printf("You lost .. try again "), restoreToDef(),exit(0);
+
+    if(snake->body[0].x <= 0 || snake->body[0].x >= width -1  || snake->body[0].y <= 0 || snake->body[0].y >= height-1)
+        restoreToDef() ,printf("You lost...\n"), exit(0);
+}
+void printSnake(struct player *snake, int **grid) {
+    for (int i = 0; i < snake->size; i++)
+        if (snake->body[i].y >= 0 && snake->body[i].y < height && snake->body[i].x >= 0 && snake->body[i].x < width)
+            grid[snake->body[i].y][snake->body[i].x] = '*';
 }
 
 int main()
@@ -134,7 +158,7 @@ int main()
     
     screenSize(&height,&width); //grid[height,width] height = Y axis , width = X axis
     //allocate memory for height pointers ( each pointers points to an array)
-    int **grid = malloc(sizeof(int *) * height); //array of pointers to an array, reason to malloc with (int *) 
+    int **grid = malloc(sizeof(int *)*height); //array of pointers to an array, reason to malloc with (int *) 
 
     if(!grid)
         perror("allocation error") , exit(1);
@@ -144,7 +168,6 @@ int main()
         if(!grid[i])
             perror("allocation in for error"),exit(1);
     }
-    //printf("allocation succesful \n"); 
 
     for(int i = 0; i<height; i++)
         for(int j = 0; j<width; j++)
@@ -156,44 +179,60 @@ int main()
     if(!snake)
         perror("Bad allocation with snake") , exit(1);
     
-    snake->body.x = height/2; 
-    snake->body.y = width/2 ;
+    snake->body[0].x = width/2; 
+    snake->body[0].y = height/2 ;
     snake->direction = UP;
     snake->lastpos.x = -1; 
     snake->lastpos.y = -1;
- 
+    snake->size = 1 ;
+
     setTerminal(); 
     char keyboard = '\0'; 
     printf("press any key to play , WASD-control the snake, Q - exit the game\n") ; 
 
     while(1)
     {   
+
+        for(int i = 0;i<height;i++)
+            for(int j = 0; j< width;j++){
+               if(grid[i][j] == '@')
+                    j ++; 
+                else 
+                grid[i][j] = ' ';
+            }
         drawBorder(grid,height,width);
-        
+      
         if(fruit.active == 0){
             fruitposition(&fruit,height,width,grid);
         }
         
         read(STDIN_FILENO , &keyboard , 1);  
         if(keyboard == 'q' || keyboard == 'Q'){
-            restoreToDef(); //restore default setti ngs;
+            restoreToDef(); //restore default settings;
             break;
         }
-        else if (keyboard == 'w' || keyboard == 'a' || keyboard == 's' || keyboard == 'd')
-            snake->direction = (keyboard == 'w') ? UP : 
-                                (keyboard =='s') ? DOWN :
-                                (keyboard =='a') ? LEFT : RIGHT;
+        else if (keyboard == 'w' && snake->direction != DOWN)
+            snake->direction = UP;
+        else if(keyboard == 's' && snake->direction != UP)
+            snake->direction = DOWN;
+        else if(keyboard == 'a' && snake->direction != RIGHT)
+            snake->direction = LEFT;
+        else if(keyboard == 'd' && snake->direction != LEFT)
+            snake->direction = RIGHT; 
+           
+           //change in normal if , if snake  dir up and keyboard is S do not change snake dir 
             
         
         checkCol(snake,&fruit,grid,height,width);
         movement(snake,height,width);
-        setpos(snake,grid);
-        //cleanscreen();
+
+        printSnake(snake,grid);
         printGrid(grid,height,width);
-        cleanTrail(snake->lastpos,grid);
-        usleep(200000);
+      
+        usleep(20000);
     }
     restoreToDef() ; // restoring default settings 
+    free(snake);
     clean(grid,height);   
     return 0;   
 }

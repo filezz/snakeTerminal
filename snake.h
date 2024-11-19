@@ -1,6 +1,6 @@
 #ifndef SNAKE_H
 #define SNAKE_H 
-
+#define MAX_SNAKE 100 
 #include<stdio.h>
 
 typedef enum direction
@@ -14,8 +14,8 @@ typedef struct coordonates
 }coordonates;
 
 typedef struct player
-{
-   coordonates body; 
+{   
+   coordonates body[100]; 
    coordonates lastpos ;
    int size;
    direction direction ;
